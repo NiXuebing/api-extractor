@@ -1,0 +1,40 @@
+# Default extractor configuration
+title: "Project API"
+version: "1.0.0"
+sourceDirs: []
+basePackages: []
+wrappers:
+  - type: "org.springframework.http.ResponseEntity<T>"
+    payloadArgIndex: 0
+  - type: "com.myco.common.Result<T>"
+    payloadArgIndex: 0
+  - type: "com.baomidou.mybatisplus.extension.plugins.pagination.Page<T>"
+    payloadArgIndex: 0
+    asSchema:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: "T"
+        total:
+          type: integer
+          format: int64
+        size:
+          type: integer
+        current:
+          type: integer
+      required:
+        - records
+        - total
+mediaTypeNormalize:
+  "*/*": "application/json"
+ignore:
+  paths: []
+  parameters: []
+limits:
+  maxDepth: 30
+  maxProperties: 2000
+naming:
+  schemaName: "FQN_ERASED_WITH_TYPEARGS"
+  collision: "first-wins-log"
