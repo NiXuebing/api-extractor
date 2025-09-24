@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.yourco.extractor.model.Endpoint;
+import com.yourco.extractor.model.EndpointResponse;
 import com.yourco.extractor.model.Param;
 import com.yourco.extractor.model.ParameterLocation;
 import com.yourco.extractor.model.Payload;
@@ -79,7 +80,9 @@ public final class OpenApiBuilder {
     }
 
     ApiResponses responses = new ApiResponses();
-    responses.addApiResponse("200", createResponse(endpoint.getResponse(), generator));
+    for (EndpointResponse responseSpec : endpoint.getResponses()) {
+      responses.addApiResponse(responseSpec.getStatusCode(), createResponse(responseSpec, generator));
+    }
     operation.setResponses(responses);
 
     try {
@@ -97,23 +100,25 @@ public final class OpenApiBuilder {
     return requestBody;
   }
 
-  private ApiResponse createResponse(Payload payload, SchemaGenerator generator) {
+  private ApiResponse createResponse(EndpointResponse responseSpec, SchemaGenerator generator) {
     ApiResponse response = new ApiResponse();
-    response.setDescription("OK");
-    response.setContent(createContent(payload, generator));
+    String description =
+        Optional.ofNullable(responseSpec.getDescription())
+            .or(() -> HttpStatusLookup.defaultReason(responseSpec.getStatusCode()))
+            .orElse("OK");
+    response.setDescription(description);
+    Content content = createContent(responseSpec.getPayload(), generator);
+    if (content != null && !content.isEmpty()) {
+      response.setContent(content);
+    }
     return response;
   }
 
   private Content createContent(Payload payload, SchemaGenerator generator) {
-    Content content = new Content();
     if (payload == null) {
-      MediaType mt = new MediaType();
-      Schema<?> schema = new Schema<>();
-      schema.setType("object");
-      mt.setSchema(schema);
-      content.addMediaType("application/json", mt);
-      return content;
+      return null;
     }
+    Content content = new Content();
     List<String> mediaTypes = payload.getMediaTypes();
     if (mediaTypes == null || mediaTypes.isEmpty()) {
       mediaTypes = List.of("application/json");

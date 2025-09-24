@@ -11,7 +11,7 @@ public class Endpoint {
   private final String fullPath;
   private final List<Param> params;
   private final Payload requestBody;
-  private final Payload response;
+  private final List<EndpointResponse> responses;
   private final List<String> consumes;
   private final List<String> produces;
   private final String operationId;
@@ -21,7 +21,7 @@ public class Endpoint {
     this.fullPath = builder.fullPath;
     this.params = Collections.unmodifiableList(new ArrayList<>(builder.params));
     this.requestBody = builder.requestBody;
-    this.response = builder.response;
+    this.responses = Collections.unmodifiableList(new ArrayList<>(builder.responses));
     this.consumes = Collections.unmodifiableList(new ArrayList<>(builder.consumes));
     this.produces = Collections.unmodifiableList(new ArrayList<>(builder.produces));
     this.operationId = builder.operationId;
@@ -43,8 +43,8 @@ public class Endpoint {
     return requestBody;
   }
 
-  public Payload getResponse() {
-    return response;
+  public List<EndpointResponse> getResponses() {
+    return responses;
   }
 
   public List<String> getConsumes() {
@@ -68,7 +68,7 @@ public class Endpoint {
     private String fullPath;
     private List<Param> params = new ArrayList<>();
     private Payload requestBody;
-    private Payload response;
+    private List<EndpointResponse> responses = new ArrayList<>();
     private List<String> consumes = new ArrayList<>();
     private List<String> produces = new ArrayList<>();
     private String operationId;
@@ -100,8 +100,15 @@ public class Endpoint {
       return this;
     }
 
-    public Builder response(Payload response) {
-      this.response = response;
+    public Builder responses(List<EndpointResponse> responses) {
+      this.responses = new ArrayList<>(Objects.requireNonNullElse(responses, List.of()));
+      return this;
+    }
+
+    public Builder addResponse(EndpointResponse response) {
+      if (response != null) {
+        this.responses.add(response);
+      }
       return this;
     }
 
