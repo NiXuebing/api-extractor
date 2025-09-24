@@ -1,5 +1,6 @@
 package com.yourco.extractor.types;
 
+import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.types.ResolvedPrimitiveType;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import java.util.List;
@@ -35,7 +36,12 @@ public final class Types {
 
   private static boolean implementsInterface(ResolvedReferenceType ref, String iface) {
     return ref.getAllAncestors().stream()
-        .filter(ResolvedReferenceType::isInterface)
+        .filter(
+            ancestor ->
+                ancestor
+                    .getTypeDeclaration()
+                    .map(ResolvedReferenceTypeDeclaration::isInterface)
+                    .orElse(false))
         .anyMatch(ancestor -> ancestor.getQualifiedName().equals(iface));
   }
 

@@ -81,7 +81,7 @@ public final class JavaType {
       return List.of();
     }
     ResolvedReferenceType referenceType = resolvedType.asReferenceType();
-    List<ResolvedType> values = new ArrayList<>(referenceType.getTypeParametersValues());
+    List<ResolvedType> values = new ArrayList<>(referenceType.typeParametersValues());
     return values.stream().map(JavaType::from).collect(Collectors.toUnmodifiableList());
   }
 
@@ -89,7 +89,7 @@ public final class JavaType {
     if (!isReferenceType()) {
       return this;
     }
-    return new JavaType(resolvedType.asReferenceType().getErasedType());
+    return new JavaType(resolvedType.asReferenceType().erasure());
   }
 
   public Optional<JavaType> getFirstTypeArgument() {
