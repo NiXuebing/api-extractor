@@ -70,7 +70,6 @@ public class Payload {
     }
 
     public Payload build() {
-      Objects.requireNonNull(javaType, "javaType");
       return new Payload(this);
     }
   }

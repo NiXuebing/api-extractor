@@ -2,7 +2,6 @@ package com.yourco.extractor;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseProblemException;
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -12,7 +11,6 @@ import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
-import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
 import com.yourco.extractor.model.Endpoint;
@@ -21,7 +19,6 @@ import com.yourco.extractor.model.ParameterLocation;
 import com.yourco.extractor.model.Payload;
 import com.yourco.extractor.types.JavaType;
 import com.yourco.extractor.types.Types;
-import com.yourco.extractor.wrapper.WrapperMeta;
 import com.yourco.extractor.wrapper.WrapperStripper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -180,21 +177,17 @@ public final class ControllerScanner {
       }
 
       JavaType responseType = resolveType(method.getType()).orElse(null);
-      if (responseType == null || responseType.isVoid()) {
-        responseType = resolveObjectType();
-      }
-      JavaType payloadType = wrapperStripper.strip(responseType);
-      Optional<WrapperMeta> wrapperMeta = wrapperStripper.meta(responseType);
       List<String> responseMedia = normalizedProduces.isEmpty()
           ? List.of("application/json")
           : normalizedProduces;
-      Payload responsePayload =
-          Payload.builder()
-              .javaType(payloadType)
-              .mediaTypes(responseMedia)
-              .required(false)
-              .wrapperMeta(wrapperMeta.orElse(null))
-              .build();
+      Payload.Builder responseBuilder =
+          Payload.builder().mediaTypes(responseMedia).required(false);
+      if (responseType != null && !responseType.isVoid()) {
+        JavaType payloadType = wrapperStripper.strip(responseType);
+        responseBuilder.javaType(payloadType);
+        wrapperStripper.meta(responseType).ifPresent(responseBuilder::wrapperMeta);
+      }
+      Payload responsePayload = responseBuilder.build();
 
       for (String classPath : classPaths) {
         for (String methodPath : methodPaths) {
@@ -220,12 +213,6 @@ public final class ControllerScanner {
       }
     }
     return endpoints;
-  }
-
-  private JavaType resolveObjectType() {
-    Type objectType = StaticJavaParser.parseType("java.lang.Object");
-    return resolveType(objectType)
-        .orElseThrow(() -> new IllegalStateException("Unable to resolve java.lang.Object"));
   }
 
   private ParameterDescriptor describeParameter(Parameter parameter) {

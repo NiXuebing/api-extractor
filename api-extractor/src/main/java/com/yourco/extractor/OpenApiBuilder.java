@@ -27,10 +27,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +41,15 @@ public final class OpenApiBuilder {
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenApiBuilder.class);
   private static final ObjectMapper SCHEMA_MAPPER = new ObjectMapper();
   private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+  private static final Set<String> NULLABLE_FIELDS =
+      new LinkedHashSet<>(
+          List.of(
+              "description",
+              "summary",
+              "termsOfService",
+              "contact",
+              "license",
+              "externalDocs"));
 
   private final OpenAPI openApi;
   private final ExtractorConfig config;
@@ -217,8 +228,10 @@ public final class OpenApiBuilder {
     openApi.setComponents(components);
     ObjectMapper mapper = new ObjectMapper();
     mapper.enable(SerializationFeature.INDENT_OUTPUT);
+    Map<String, Object> asMap = mapper.convertValue(openApi, MAP_TYPE);
+    Map<String, Object> sanitized = pruneNulls(asMap);
     try (Writer writer = Files.newBufferedWriter(output)) {
-      mapper.writeValue(writer, openApi);
+      mapper.writeValue(writer, sanitized);
     }
   }
 
@@ -229,5 +242,44 @@ public final class OpenApiBuilder {
       case HEADER -> "header";
       case COOKIE -> "cookie";
     };
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> pruneNulls(Map<String, Object> node) {
+    Map<String, Object> result = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : node.entrySet()) {
+      String key = entry.getKey();
+      Object value = entry.getValue();
+      if (value == null) {
+        if (NULLABLE_FIELDS.contains(key)) {
+          result.put(key, null);
+        }
+        continue;
+      }
+      Object pruned = pruneNulls(value);
+      result.put(key, pruned);
+    }
+    return result;
+  }
+
+  private Object pruneNulls(Object value) {
+    if (value instanceof Map<?, ?> map) {
+      Map<String, Object> converted = new LinkedHashMap<>();
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        converted.put(String.valueOf(entry.getKey()), entry.getValue());
+      }
+      return pruneNulls(converted);
+    }
+    if (value instanceof List<?> list) {
+      List<Object> prunedList = new ArrayList<>(list.size());
+      for (Object element : list) {
+        Object pruned = pruneNulls(element);
+        if (pruned != null) {
+          prunedList.add(pruned);
+        }
+      }
+      return prunedList;
+    }
+    return value;
   }
 }
