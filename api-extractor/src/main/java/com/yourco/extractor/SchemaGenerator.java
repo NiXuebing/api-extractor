@@ -6,6 +6,7 @@ import com.github.javaparser.resolution.declarations.ResolvedEnumDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedEnumConstantDeclaration;
 import com.github.javaparser.resolution.types.ResolvedPrimitiveType;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
 import com.yourco.extractor.types.JavaType;
 import com.yourco.extractor.types.Types;
 import io.swagger.v3.oas.models.media.ArraySchema;
@@ -29,6 +30,8 @@ public final class SchemaGenerator {
   private static final Logger LOGGER = LoggerFactory.getLogger(SchemaGenerator.class);
 
   private final ExtractorConfig config;
+  private final SchemaNaming naming;
+  private final PolymorphismSupport polymorphism;
   private final Map<String, Schema> components = new LinkedHashMap<>();
   private final Set<String> processing = ConcurrentHashMap.newKeySet();
   private final JacksonSupport jacksonSupport = new JacksonSupport();
@@ -36,6 +39,10 @@ public final class SchemaGenerator {
 
   public SchemaGenerator(ProjectClasspath classpath, ExtractorConfig config) {
     this.config = config;
+    JavaParserFacade facade = JavaParserFacade.get(classpath.getTypeSolver());
+    this.naming = new SchemaNaming(config.getNaming());
+    this.polymorphism =
+        new PolymorphismSupport(config.getPolymorphism(), naming, jacksonSupport, facade);
   }
 
   public Schema<?> toSchema(JavaType type) {
@@ -174,7 +181,7 @@ public final class SchemaGenerator {
   }
 
   private Schema<?> registerEnum(JavaType type, ResolvedEnumDeclaration declaration) {
-    String name = Types.schemaName(type);
+    String name = naming.schemaName(type);
     if (components.containsKey(name)) {
       return referenceSchema(name);
     }
@@ -190,7 +197,7 @@ public final class SchemaGenerator {
 
   private Schema<?> registerObject(
       JavaType type, ResolvedReferenceTypeDeclaration declaration, int depth) {
-    String name = Types.schemaName(type);
+    String name = naming.schemaName(type);
     if (components.containsKey(name)) {
       return referenceSchema(name);
     }
@@ -235,6 +242,13 @@ public final class SchemaGenerator {
     if (!required.isEmpty()) {
       schema.setRequired(new ArrayList<>(required));
     }
+    Schema<?> finalized =
+        polymorphism.apply(
+            type,
+            declaration,
+            schema,
+            nested -> toSchema(nested, depth + 1));
+    components.put(name, finalized);
     return referenceSchema(name);
   }
 

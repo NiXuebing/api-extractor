@@ -6,9 +6,16 @@ import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserAnnotationDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserClassDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserEnumDeclaration;
 import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserInterfaceDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserRecordDeclaration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public final class JacksonSupport {
@@ -20,6 +27,16 @@ public final class JacksonSupport {
   public Optional<String> findSerializedName(ResolvedFieldDeclaration field, String fallback) {
     Optional<String> name = findJsonPropertyValue(field);
     return name.isPresent() ? name : Optional.ofNullable(fallback);
+  }
+
+  public Optional<AnnotationExpr> findTypeAnnotation(
+      ResolvedReferenceTypeDeclaration declaration, String simpleName) {
+    for (AnnotationExpr annotation : typeAnnotations(declaration)) {
+      if (annotation.getName().getIdentifier().equals(simpleName)) {
+        return Optional.of(annotation);
+      }
+    }
+    return Optional.empty();
   }
 
   private boolean hasAnnotation(ResolvedFieldDeclaration field, String target) {
@@ -57,16 +74,9 @@ public final class JacksonSupport {
         continue;
       }
       if (annotation.isSingleMemberAnnotationExpr()) {
-        if (annotation
-            .asSingleMemberAnnotationExpr()
-            .getMemberValue()
-            .isStringLiteralExpr()) {
-          return Optional.of(
-              annotation
-                  .asSingleMemberAnnotationExpr()
-                  .getMemberValue()
-                  .asStringLiteralExpr()
-                  .asString());
+        SingleMemberAnnotationExpr single = annotation.asSingleMemberAnnotationExpr();
+        if (single.getMemberValue().isStringLiteralExpr()) {
+          return Optional.of(single.getMemberValue().asStringLiteralExpr().asString());
         }
       }
       if (annotation.isNormalAnnotationExpr()) {
@@ -79,5 +89,24 @@ public final class JacksonSupport {
       }
     }
     return Optional.empty();
+  }
+
+  private Iterable<AnnotationExpr> typeAnnotations(ResolvedReferenceTypeDeclaration declaration) {
+    if (declaration instanceof JavaParserClassDeclaration parser) {
+      return new ArrayList<>(parser.getWrappedNode().getAnnotations());
+    }
+    if (declaration instanceof JavaParserInterfaceDeclaration parser) {
+      return new ArrayList<>(parser.getWrappedNode().getAnnotations());
+    }
+    if (declaration instanceof JavaParserEnumDeclaration parser) {
+      return new ArrayList<>(parser.getWrappedNode().getAnnotations());
+    }
+    if (declaration instanceof JavaParserRecordDeclaration parser) {
+      return new ArrayList<>(parser.getWrappedNode().getAnnotations());
+    }
+    if (declaration instanceof JavaParserAnnotationDeclaration parser) {
+      return new ArrayList<>(parser.getWrappedNode().getAnnotations());
+    }
+    return List.of();
   }
 }

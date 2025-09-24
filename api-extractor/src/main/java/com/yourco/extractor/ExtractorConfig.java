@@ -2,8 +2,10 @@ package com.yourco.extractor;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -132,21 +134,40 @@ public final class ExtractorConfig {
   }
 
   public boolean isPathIgnored(String path) {
-    return ignore.paths.stream().anyMatch(pattern -> globMatch(path, pattern));
+    if (ignore.paths.isEmpty()) {
+      return false;
+    }
+    String normalizedPath = Util.normalizePath(path);
+    for (String rawPattern : ignore.paths) {
+      String pattern = normalizeGlobPattern(rawPattern);
+      if (pattern.isEmpty()) {
+        continue;
+      }
+      PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+      if (matcher.matches(Path.of(normalizedPath))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public boolean isParameterIgnored(String name) {
     return ignore.parameters.contains(name);
   }
 
-  private boolean globMatch(String path, String pattern) {
-    String normalized = path.replace('\\', '/');
-    String glob = pattern.replace('\\', '/');
-    if (glob.endsWith("/**")) {
-      String prefix = glob.substring(0, glob.length() - 3);
-      return normalized.startsWith(prefix);
+  private String normalizeGlobPattern(String rawPattern) {
+    if (rawPattern == null) {
+      return "";
     }
-    return normalized.equals(glob);
+    String trimmed = rawPattern.trim();
+    if (trimmed.isEmpty()) {
+      return "";
+    }
+    String normalized = trimmed.replace('\\', '/');
+    if (!normalized.startsWith("/")) {
+      normalized = "/" + normalized;
+    }
+    return normalized;
   }
 
   public void setDefaultTitle(String defaultTitle) {
