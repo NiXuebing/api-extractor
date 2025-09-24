@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
@@ -32,11 +33,13 @@ public final class ExtractorConfig {
 
   public static ExtractorConfig load(Path path) throws IOException {
     Objects.requireNonNull(path, "config path");
-    Constructor constructor = new Constructor(ExtractorConfig.class);
+    LoaderOptions loaderOptions = new LoaderOptions();
+    Constructor constructor = new Constructor(ExtractorConfig.class, loaderOptions);
     Yaml yaml = new Yaml(constructor);
     ExtractorConfig config;
     try (InputStream in = Files.newInputStream(path)) {
-      config = Optional.ofNullable(yaml.load(in)).orElseGet(ExtractorConfig::new);
+      ExtractorConfig loaded = yaml.loadAs(in, ExtractorConfig.class);
+      config = loaded != null ? loaded : new ExtractorConfig();
     }
     config.baseDir = path.toAbsolutePath().getParent();
     config.applyDefaults();

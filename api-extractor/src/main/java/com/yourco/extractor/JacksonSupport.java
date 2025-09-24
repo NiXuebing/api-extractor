@@ -14,12 +14,30 @@ import java.util.Optional;
 public final class JacksonSupport {
 
   public boolean isIgnored(ResolvedFieldDeclaration field) {
-    return field.hasAnnotation("com.fasterxml.jackson.annotation.JsonIgnore");
+    return hasAnnotation(field, "com.fasterxml.jackson.annotation.JsonIgnore");
   }
 
   public Optional<String> findSerializedName(ResolvedFieldDeclaration field, String fallback) {
     Optional<String> name = findJsonPropertyValue(field);
     return name.isPresent() ? name : Optional.ofNullable(fallback);
+  }
+
+  private boolean hasAnnotation(ResolvedFieldDeclaration field, String target) {
+    if (field instanceof JavaParserFieldDeclaration parserField) {
+      FieldDeclaration declaration = parserField.getWrappedNode();
+      return declaration.getAnnotations().stream()
+          .anyMatch(annotation -> annotationMatches(annotation, target));
+    }
+    return false;
+  }
+
+  private boolean annotationMatches(AnnotationExpr annotation, String target) {
+    String fullName = annotation.getNameAsString();
+    String simpleName = annotation.getName().getIdentifier();
+    if (target.equals(fullName) || target.equals(simpleName)) {
+      return true;
+    }
+    return target.endsWith("." + simpleName);
   }
 
   private Optional<String> findJsonPropertyValue(ResolvedFieldDeclaration field) {

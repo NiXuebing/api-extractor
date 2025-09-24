@@ -37,7 +37,7 @@ public final class ProjectClasspath {
     for (Path jar : config.getClasspathEntries()) {
       try {
         LOGGER.debug("Adding jar: {}", jar);
-        solver.add(JarTypeSolver.getJarTypeSolver(jar));
+        solver.add(new JarTypeSolver(jar));
       } catch (IOException ex) {
         LOGGER.warn("Failed to add jar {} to classpath: {}", jar, ex.getMessage());
       }
