@@ -29,7 +29,7 @@ public final class SchemaGenerator {
   private static final Logger LOGGER = LoggerFactory.getLogger(SchemaGenerator.class);
 
   private final ExtractorConfig config;
-  private final Map<String, Schema<?>> components = new LinkedHashMap<>();
+  private final Map<String, Schema> components = new LinkedHashMap<>();
   private final Set<String> processing = ConcurrentHashMap.newKeySet();
   private final JacksonSupport jacksonSupport = new JacksonSupport();
   private final BeanValidationSupport validationSupport = new BeanValidationSupport();
@@ -42,7 +42,7 @@ public final class SchemaGenerator {
     return toSchema(type, 0);
   }
 
-  public Map<String, Schema<?>> getComponents() {
+  public Map<String, Schema> getComponents() {
     return components;
   }
 
@@ -91,10 +91,11 @@ public final class SchemaGenerator {
       }
       ResolvedReferenceType ref = type.asReferenceType();
       try {
-        ResolvedReferenceTypeDeclaration declaration = ref.getTypeDeclaration();
-        if (declaration == null) {
+        Optional<ResolvedReferenceTypeDeclaration> declarationOpt = ref.getTypeDeclaration();
+        if (declarationOpt.isEmpty()) {
           return objectSchema();
         }
+        ResolvedReferenceTypeDeclaration declaration = declarationOpt.get();
         if (declaration.isEnum()) {
           return registerEnum(type, declaration.asEnum());
         }
@@ -199,7 +200,7 @@ public final class SchemaGenerator {
     ObjectSchema schema = new ObjectSchema();
     components.put(name, schema);
     Set<String> required = new LinkedHashSet<>();
-    Map<String, Schema<?>> properties = new LinkedHashMap<>();
+    Map<String, Schema> properties = new LinkedHashMap<>();
     Set<String> seen = new LinkedHashSet<>();
     try {
       for (ResolvedFieldDeclaration field : declaration.getAllFields()) {

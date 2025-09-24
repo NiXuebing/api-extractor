@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,11 +134,14 @@ public final class OpenApiBuilder {
     if (meta == null) {
       return inner;
     }
-    return meta.getSchemaTemplate()
-        .map(template -> applyWrapperTemplate(meta, template, inner))
-        .orElse(inner);
+    Optional<Map<String, Object>> template = meta.getSchemaTemplate();
+    if (template.isEmpty()) {
+      return inner;
+    }
+    return applyWrapperTemplate(meta, template.get(), inner);
   }
 
+  @SuppressWarnings("unchecked")
   private Schema<?> applyWrapperTemplate(
       WrapperMeta meta, Map<String, Object> template, Schema<?> inner) {
     if (template == null || template.isEmpty()) {

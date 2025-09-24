@@ -41,12 +41,27 @@ public final class BeanValidationSupport {
   }
 
   private boolean hasAny(ResolvedFieldDeclaration field, String... annotations) {
-    for (String name : annotations) {
-      if (field.hasAnnotation(name)) {
-        return true;
+    Optional<FieldDeclaration> ast = toAst(field);
+    if (ast.isEmpty()) {
+      return false;
+    }
+    for (AnnotationExpr annotation : ast.get().getAnnotations()) {
+      for (String candidate : annotations) {
+        if (annotationMatches(annotation, candidate)) {
+          return true;
+        }
       }
     }
     return false;
+  }
+
+  private boolean annotationMatches(AnnotationExpr annotation, String target) {
+    String fullName = annotation.getNameAsString();
+    String simpleName = annotation.getName().getIdentifier();
+    if (target.equals(fullName) || target.equals(simpleName)) {
+      return true;
+    }
+    return target.endsWith("." + simpleName);
   }
 
   private void applySize(ResolvedFieldDeclaration field, Schema<?> schema) {
